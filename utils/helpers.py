@@ -5,7 +5,7 @@ import jwt
 from fastapi import Request, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from core.database import  SessionLocal
-from users.models import *
+from users.models import User, BlacklistedToken
 from sqlalchemy.orm import selectinload
 
 

@@ -3,11 +3,13 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 from core.database import Base
 import enum
-# from comments.models import Comment
-# from users.models import User
-# from teams.models import Team
 
-
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from projects.models import Project
+    from users.models import User
+    from comments.models import Comment
+    from tasks.models import Task
 
 
 class TaskStatus(str, enum.Enum):
@@ -19,20 +21,24 @@ class TaskStatus(str, enum.Enum):
 class Task(Base):
     __tablename__ = "tasks"
 
-    id = Column(Integer, primary_key=True, index=True)
-    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    id = Column(Integer, primary_key=True)
     title = Column(String, nullable=False)
-    description = Column(Text, nullable=True)
-    deadline = Column(DateTime, nullable=True)
+    description = Column(Text)
     status = Column(Enum(TaskStatus), default=TaskStatus.new)
-    author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    assignee_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    parent_task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)
+    deadline = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
-    completed_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime)
     is_deleted = Column(Boolean, default=False)
 
+    author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    assignee_id = Column(Integer, ForeignKey("users.id"))
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    parent_task_id = Column(Integer, ForeignKey("tasks.id"))
+
+    author = relationship("User", foreign_keys=[author_id], back_populates="tasks_authored")
+    assignee = relationship("User", foreign_keys=[assignee_id], back_populates="tasks_assigned")
+    project = relationship("Project", back_populates="tasks")
     team = relationship("Team", back_populates="tasks")
-    author = relationship("User", back_populates="tasks_authored", foreign_keys=[author_id])
-    assignee = relationship("User", back_populates="tasks_assigned", foreign_keys=[assignee_id])
     comments = relationship("Comment", back_populates="task", cascade="all, delete-orphan")
+    parent = relationship("Task", remote_side=[id])

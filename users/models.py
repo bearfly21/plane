@@ -7,6 +7,14 @@ from tasks.models import Task
 from comments.models import Comment
 from activity_logs.models import ActivityLog
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from projects.models import Project
+    from comments.models import Comment
+    from tasks.models import Task
+    from activity_logs.models import ActivityLog
+    
+
 class User(Base):
     __tablename__ = "users"
 
@@ -20,10 +28,14 @@ class User(Base):
 
     
     memberships = relationship("TeamMembership",back_populates="user",foreign_keys=[TeamMembership.user_id],cascade="all, delete-orphan")
+    owned_projects = relationship("Project", back_populates="owner")
     tasks_authored = relationship("Task", back_populates="author", foreign_keys=[Task.author_id])
     tasks_assigned = relationship("Task", back_populates="assignee", foreign_keys=[Task.assignee_id])
     comments = relationship("Comment", back_populates="author")
     activities = relationship("ActivityLog", back_populates="user")
+    tasks_authored = relationship("Task", foreign_keys="[Task.author_id]", back_populates="author")
+    tasks_assigned = relationship("Task", foreign_keys="[Task.assignee_id]", back_populates="assignee")
+    comments = relationship("Comment", back_populates="author")
 
 
 

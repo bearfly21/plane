@@ -1,48 +1,47 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, Enum
+from sqlalchemy import Column, Integer, String, ForeignKey, Enum, Table
 from sqlalchemy.orm import relationship
-from datetime import datetime
 from core.database import Base
-from tasks.models import *
-from users.models import *
-from roles.models import *
+import enum
+from projects.models import Project
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from users.models import User
+    from roles.models import Role
+
+# Many-to-Many Team ↔ Project
+project_teams = Table(
+    "project_teams",
+    Base.metadata,
+    Column("project_id", ForeignKey("projects.id"), primary_key=True),
+    Column("team_id", ForeignKey("teams.id"), primary_key=True),
+)
 
 class Team(Base):
     __tablename__ = "teams"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    is_deleted = Column(Boolean, default=False)
 
-    memberships = relationship("TeamMembership", back_populates="team", cascade="all, delete-orphan")
-    tasks = relationship("Task", back_populates="team", cascade="all, delete-orphan")
+    memberships = relationship("TeamMembership", back_populates="team")
+    projects = relationship(Project, secondary=project_teams, back_populates="teams")
+    tasks = relationship("Task", back_populates="team")
 
-
-
-import enum
+    
 
 class MembershipStatus(str, enum.Enum):
     pending = "pending"
     accepted = "accepted"
 
-
-
 class TeamMembership(Base):
     __tablename__ = "team_memberships"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
-    role_id = Column(Integer, ForeignKey("roles.id"), nullable=False)
+    role_id = Column(Integer, ForeignKey("roles.id"), nullable=True)
     status = Column(Enum(MembershipStatus), default=MembershipStatus.pending)
-    invited_by = Column(Integer, ForeignKey("users.id"), nullable=True)
-    invited_at = Column(DateTime, default=datetime.utcnow)
-    joined_at = Column(DateTime, nullable=True)
-    left_at = Column(DateTime, nullable=True)
-    is_deleted = Column(Boolean, default=False)
 
-    user = relationship("User", back_populates="memberships", foreign_keys=[user_id])
+    user = relationship("User", back_populates="memberships")
     team = relationship("Team", back_populates="memberships")
     role = relationship("Role", back_populates="memberships")

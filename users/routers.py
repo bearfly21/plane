@@ -1,8 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from .shcemas import *
+from .shcemas import UserRegistrationSchema, UserLogoutSchema, UserLoginSchema, UserSchema
 from sqlalchemy.orm import Session
 from core.database import get_db
-from utils.helpers import *
+from utils.helpers import is_authenticate, hash_password, verify_password, JWTBearer, generate_token
+# from typing import TYPE_CHECKING
+
+# if TYPE_CHECKING:
+from users.models import User, BlacklistedToken
+
 
 auth_router = APIRouter()
 

@@ -1,22 +1,21 @@
-"""second  migration
+"""01 migration
 
-Revision ID: b63e040ced96
-Revises: b0179e7a5d1f
-Create Date: 2025-10-01 13:36:46.493708
+Revision ID: 4b7eab0d4c14
+Revises: 
+Create Date: 2025-10-02 14:25:38.822308
 
 """
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from core.database import Base, SessionLocal
+from core.database import Base
 from utils.permissions import add_permissions
 from sqlalchemy.orm import Session
 
-
 # revision identifiers, used by Alembic.
-revision: str = 'b63e040ced96'
-down_revision: Union[str, Sequence[str], None] = 'b0179e7a5d1f'
+revision: str = '4b7eab0d4c14'
+down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -47,6 +46,11 @@ def upgrade() -> None:
     sa.UniqueConstraint('name')
     )
     op.create_index(op.f('ix_roles_id'), 'roles', ['id'], unique=False)
+    op.create_table('teams',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('users',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('username', sa.String(), nullable=False),
@@ -72,6 +76,13 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_activity_logs_id'), 'activity_logs', ['id'], unique=False)
+    op.create_table('projects',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(), nullable=False),
+    sa.Column('owner_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['owner_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('role_permissions',
     sa.Column('role_id', sa.Integer(), nullable=False),
     sa.Column('permission_id', sa.Integer(), nullable=False),
@@ -79,70 +90,59 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['role_id'], ['roles.id'], ),
     sa.PrimaryKeyConstraint('role_id', 'permission_id')
     )
-    op.create_table('teams',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('name', sa.String(), nullable=False),
-    sa.Column('owner_id', sa.Integer(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=True),
-    sa.Column('is_deleted', sa.Boolean(), nullable=True),
-    sa.ForeignKeyConstraint(['owner_id'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_teams_id'), 'teams', ['id'], unique=False)
-    op.create_table('tasks',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('team_id', sa.Integer(), nullable=False),
-    sa.Column('title', sa.String(), nullable=False),
-    sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('deadline', sa.DateTime(), nullable=True),
-    sa.Column('status', sa.Enum('new', 'in_progress', 'done', 'overdue', name='taskstatus'), nullable=True),
-    sa.Column('author_id', sa.Integer(), nullable=False),
-    sa.Column('assignee_id', sa.Integer(), nullable=True),
-    sa.Column('parent_task_id', sa.Integer(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), nullable=True),
-    sa.Column('completed_at', sa.DateTime(), nullable=True),
-    sa.Column('is_deleted', sa.Boolean(), nullable=True),
-    sa.ForeignKeyConstraint(['assignee_id'], ['users.id'], ),
-    sa.ForeignKeyConstraint(['author_id'], ['users.id'], ),
-    sa.ForeignKeyConstraint(['parent_task_id'], ['tasks.id'], ),
-    sa.ForeignKeyConstraint(['team_id'], ['teams.id'], ),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_tasks_id'), 'tasks', ['id'], unique=False)
     op.create_table('team_memberships',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('team_id', sa.Integer(), nullable=False),
     sa.Column('role_id', sa.Integer(), nullable=False),
     sa.Column('status', sa.Enum('pending', 'accepted', name='membershipstatus'), nullable=True),
-    sa.Column('invited_by', sa.Integer(), nullable=True),
-    sa.Column('invited_at', sa.DateTime(), nullable=True),
-    sa.Column('joined_at', sa.DateTime(), nullable=True),
-    sa.Column('left_at', sa.DateTime(), nullable=True),
-    sa.Column('is_deleted', sa.Boolean(), nullable=True),
-    sa.ForeignKeyConstraint(['invited_by'], ['users.id'], ),
     sa.ForeignKeyConstraint(['role_id'], ['roles.id'], ),
     sa.ForeignKeyConstraint(['team_id'], ['teams.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_team_memberships_id'), 'team_memberships', ['id'], unique=False)
+    op.create_table('project_teams',
+    sa.Column('project_id', sa.Integer(), nullable=False),
+    sa.Column('team_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ),
+    sa.ForeignKeyConstraint(['team_id'], ['teams.id'], ),
+    sa.PrimaryKeyConstraint('project_id', 'team_id')
+    )
+    op.create_table('tasks',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('title', sa.String(), nullable=False),
+    sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('status', sa.Enum('new', 'in_progress', 'done', 'overdue', name='taskstatus'), nullable=True),
+    sa.Column('deadline', sa.DateTime(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('completed_at', sa.DateTime(), nullable=True),
+    sa.Column('is_deleted', sa.Boolean(), nullable=True),
+    sa.Column('author_id', sa.Integer(), nullable=False),
+    sa.Column('assignee_id', sa.Integer(), nullable=True),
+    sa.Column('project_id', sa.Integer(), nullable=False),
+    sa.Column('team_id', sa.Integer(), nullable=False),
+    sa.Column('parent_task_id', sa.Integer(), nullable=True),
+    sa.ForeignKeyConstraint(['assignee_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['author_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['parent_task_id'], ['tasks.id'], ),
+    sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ),
+    sa.ForeignKeyConstraint(['team_id'], ['teams.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('comments',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('task_id', sa.Integer(), nullable=False),
-    sa.Column('author_id', sa.Integer(), nullable=False),
     sa.Column('text', sa.Text(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('is_deleted', sa.Boolean(), nullable=True),
+    sa.Column('task_id', sa.Integer(), nullable=False),
+    sa.Column('author_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['author_id'], ['users.id'], ),
     sa.ForeignKeyConstraint(['task_id'], ['tasks.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_comments_id'), 'comments', ['id'], unique=False)
-
     bind = op.get_bind()
     session = Session(bind=bind)
-    models = ["comments", "tasks", "teams"]
+    models = ["comments", "tasks", "teams", "role"]
     add_permissions(models, session)
     # ### end Alembic commands ###
 
@@ -150,21 +150,19 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
-    op.drop_index(op.f('ix_comments_id'), table_name='comments')
     op.drop_table('comments')
-    op.drop_index(op.f('ix_team_memberships_id'), table_name='team_memberships')
-    op.drop_table('team_memberships')
-    op.drop_index(op.f('ix_tasks_id'), table_name='tasks')
     op.drop_table('tasks')
-    op.drop_index(op.f('ix_teams_id'), table_name='teams')
-    op.drop_table('teams')
+    op.drop_table('project_teams')
+    op.drop_table('team_memberships')
     op.drop_table('role_permissions')
+    op.drop_table('projects')
     op.drop_index(op.f('ix_activity_logs_id'), table_name='activity_logs')
     op.drop_table('activity_logs')
     op.drop_index(op.f('ix_users_username'), table_name='users')
     op.drop_index(op.f('ix_users_id'), table_name='users')
     op.drop_index(op.f('ix_users_email'), table_name='users')
     op.drop_table('users')
+    op.drop_table('teams')
     op.drop_index(op.f('ix_roles_id'), table_name='roles')
     op.drop_table('roles')
     op.drop_index(op.f('ix_permissions_id'), table_name='permissions')

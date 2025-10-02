@@ -6,11 +6,12 @@ from sqlalchemy import pool
 from alembic import context
 from core.database import Base, SQLALCHEMY_DATABASE_URL
 from users.models import *
-from roles.models import *
-from teams.models import *
-from comments.models import *
 from activity_logs.models import *
+from comments.models import *
+from projects.models import *
+from roles.models import *
 from tasks.models import *
+from teams.models import *
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -65,7 +66,7 @@ def run_migrations_online() -> None:
 
     """
     connectable = engine_from_config(
-        {"sqlalchemy.url":SQLALCHEMY_DATABASE_URL},
+        {"sqlalchemy.url":SQLALCHEMY_DATABASE_URL },
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
