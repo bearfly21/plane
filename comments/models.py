@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 from core.database import Base
 
+
 class Comment(Base):
     __tablename__ = "comments"
 
@@ -11,8 +12,8 @@ class Comment(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     is_deleted = Column(Boolean, default=False)
 
-    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
-    author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    task_id = Column(ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    author_id = Column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
     task = relationship("Task", back_populates="comments")
     author = relationship("User", back_populates="comments")

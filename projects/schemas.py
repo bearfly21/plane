@@ -1,27 +1,18 @@
-from pydantic import BaseModel
-
-class ProjectSchema(BaseModel):
-    name:str
-
-
+from pydantic import BaseModel, EmailStr
 from typing import Optional
+from datetime import datetime
 
-class ProjectUpdateSchema(BaseModel):
-    name: Optional[str] = None
-
-
-
-from pydantic import BaseModel
-from typing import List
-from teams.schemas import TeamOutSchema  
-from users.shcemas import UserOutSchema  
-
-class ProjectOut(BaseModel):
-    id: int
+class ProjectCreateSchema(BaseModel):
     name: str
-    owner: UserOutSchema
-    teams: List[TeamOutSchema]
-        
-    class Config:
-        from_attributes = True
 
+class InviteMemberSchema(BaseModel):
+    email:EmailStr
+
+class AcceptInviteSchema(BaseModel):
+    project_id: int
+
+
+class AssignRoleSchema(BaseModel):
+    project_id: int
+    user_id: int
+    role_id: int

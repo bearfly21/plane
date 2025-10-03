@@ -18,27 +18,24 @@ class TaskStatus(str, enum.Enum):
     done = "done"
     overdue = "overdue"
 
+
 class Task(Base):
     __tablename__ = "tasks"
 
     id = Column(Integer, primary_key=True)
     title = Column(String, nullable=False)
     description = Column(Text)
-    status = Column(Enum(TaskStatus), default=TaskStatus.new)
+    status = Column(Enum(TaskStatus, native_enum=False), default=TaskStatus.new)
     deadline = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime)
     is_deleted = Column(Boolean, default=False)
 
-    author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    assignee_id = Column(Integer, ForeignKey("users.id"))
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
-    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
-    parent_task_id = Column(Integer, ForeignKey("tasks.id"))
+    author_id = Column(ForeignKey("users.id", ondelete="SET NULL"))
+    assignee_id = Column(ForeignKey("users.id", ondelete="SET NULL"))
+    project_id = Column(ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
 
     author = relationship("User", foreign_keys=[author_id], back_populates="tasks_authored")
     assignee = relationship("User", foreign_keys=[assignee_id], back_populates="tasks_assigned")
     project = relationship("Project", back_populates="tasks")
-    team = relationship("Team", back_populates="tasks")
     comments = relationship("Comment", back_populates="task", cascade="all, delete-orphan")
-    parent = relationship("Task", remote_side=[id])

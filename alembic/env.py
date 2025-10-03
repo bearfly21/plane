@@ -1,17 +1,18 @@
-from logging.config import fileConfig
-
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
 from alembic import context
+from sqlalchemy import engine_from_config, pool
+from logging.config import fileConfig
 from core.database import Base, SQLALCHEMY_DATABASE_URL
-from users.models import *
-from activity_logs.models import *
-from comments.models import *
-from projects.models import *
-from roles.models import *
-from tasks.models import *
-from teams.models import *
+
+# Импорт всех моделей
+from users.models import User, BlacklistedToken
+from activity_logs.models import ActivityLog
+from projects.models import Project, project_users, ProjectUserRole
+from tasks.models import Task
+from comments.models import Comment
+from roles.models import Role, Permission, role_permissions
+
+# fileConfig, target_metadata = Base.metadata, run_migrations_online() — всё как обычно
+
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -66,7 +67,7 @@ def run_migrations_online() -> None:
 
     """
     connectable = engine_from_config(
-        {"sqlalchemy.url":SQLALCHEMY_DATABASE_URL },
+        {"sqlalchemy.url": SQLALCHEMY_DATABASE_URL},
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
