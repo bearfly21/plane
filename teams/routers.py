@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, status, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from core.database import get_db
-from .schemas import TeamCreateSchema, InviteMemberSchema, AcceptInviteSchema, AssignRoleSchema
+from .schemas import TeamCreateSchema, TeamUpdateschema, InviteMemberSchema, AcceptInviteSchema, AssignRoleSchema
 from .models import Team, TeamMembership
 from utils.helpers import JWTBearer, get_current_user, generate_token
 from utils.emails import send_invite_email
+from utils.permissions import require_team_role
 from teams.models import Team, TeamMembership, MembershipStatus
 from users.models import User
 from projects.models import Project
@@ -16,7 +17,11 @@ from roles.models import Role
 team_route = APIRouter()
 
 @team_route.post("/teams/create", dependencies=[Depends(JWTBearer())], status_code=status.HTTP_201_CREATED)
-async def create_team(data: TeamCreateSchema, db: Session = Depends(get_db), owner: User = Depends(get_current_user)):
+async def create_team(
+    data: TeamCreateSchema,
+    db: Session = Depends(get_db),
+    owner: User = Depends(get_current_user)
+):
     project = db.query(Project).filter(Project.id == data.project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -25,13 +30,48 @@ async def create_team(data: TeamCreateSchema, db: Session = Depends(get_db), own
 
     team = Team(name=data.name)
     db.add(team)
+    db.flush()  
+
+    project.teams.append(team)
+
+    role = db.query(Role).filter(Role.name == "owner").first()
+    if not role:
+        raise HTTPException(status_code=500, detail="Role 'owner' not found")
+
+    owner_membership = TeamMembership(
+        user_id=owner.id,
+        team_id=team.id,
+        role_id=role.id,
+        status=MembershipStatus.accepted
+    )
+    db.add(owner_membership)
+
     db.commit()
     db.refresh(team)
 
-    project.teams.append(team)
-    db.commit()
+    return {
+        "message": f"Team '{team.name}' created in project '{project.name}'",
+        "team_id": team.id
+    }
 
-    return {"message": f"Team '{team.name}' created in project '{project.name}'", "team_id": team.id}
+
+@team_route.put("/teams/{team_id}/edit")
+async def update_team(
+    team_id: int,
+    data: TeamUpdateschema,
+    db: Session = Depends(get_db),
+    _ = Depends(require_team_role(["owner", "admin"]))
+):
+    team = db.query(Team).filter_by(id=team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+
+    if data.name:
+        team.name = data.name
+
+    db.commit()
+    return {"message": "Team updated"}
+
 
 
 @team_route.post("/projects/{project_id}/teams/{team_id}/invite", status_code=status.HTTP_201_CREATED)
@@ -96,15 +136,27 @@ def accept_invite(data: AcceptInviteSchema, db: Session = Depends(get_db), curre
 
 
 @team_route.post("/teams/assign-role", status_code=200)
-def assign_role(data: AssignRoleSchema, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    membership = db.query(TeamMembership).filter_by(id=data.membership_id).first()
-    if not membership:
-        raise HTTPException(status_code=404, detail="Membership not found")
+def assign_role(
+    data: AssignRoleSchema,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    team = db.query(Team).filter_by(id=data.team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
 
-    team = membership.team
-    project = db.query(Project).filter(Project.teams.contains(team)).first()
-    if not project or project.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only project owner can assign roles")
+    project = (
+        db.query(Project)
+        .join(Project.teams)
+        .filter(Project.owner_id == current_user.id, Team.id == team.id)
+        .first()
+    )
+    if not project:
+        raise HTTPException(status_code=403, detail="You don't own the project this team belongs to")
+
+    membership = db.query(TeamMembership).filter_by(id=data.membership_id, team_id=data.team_id).first()
+    if not membership:
+        raise HTTPException(status_code=404, detail="Membership not found in this team")
 
     role = db.query(Role).filter(Role.id == data.role_id).first()
     if not role:
@@ -113,8 +165,8 @@ def assign_role(data: AssignRoleSchema, db: Session = Depends(get_db), current_u
     membership.role_id = role.id
     db.commit()
     db.refresh(membership)
-    return {"message": f"Role '{role.name}' assigned to user {membership.user.email}"}
 
+    return {"message": f"Role '{role.name}' assigned to user {membership.user.email}"}
 
 @team_route.delete("/memberships/{membership_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_membership(

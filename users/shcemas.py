@@ -28,5 +28,14 @@ class UserSchema(BaseModel):
 
 
 
+class UserOutSchema(BaseModel):
+    id: int
+    email: str
+    username: str
+
+    class Config:
+        from_attributes = True
+
+
 class UserLogoutSchema(BaseModel):
     token: str
